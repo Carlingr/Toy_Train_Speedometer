@@ -31,19 +31,23 @@ byte digits[] = {zero, one, two, three, four, five, six, seven, eight, nine}; //
 #define DISP_2 4
 #define DISP_3 7
 #define DISP_4 8
-byte displays[] = {DISP_1, DISP_2, DISP_3, DISP_4};
+byte displays[] = {DISP_1, DISP_2, DISP_3, DISP_4}; //array used to select specific diplay digit
 
 void setup() {
+  //next 3 lines get the shift register all warmed up
   pinMode(latchPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(dataPin, OUTPUT);
+
+  //these three are for the display
   for (byte i; i < 4; i++) {
     pinMode(displays[i], OUTPUT);
   }
 }
 
 void loop() {
-  grabplace(carspeed);
+  grabplace(carspeed); //break down the number into individual places
+  //next 3 lines: now that we have the places, send out the data
   for (byte i; i < 4; i++) {
     writeDisplay(dispVal[i], displays[i]);
   }
@@ -58,27 +62,28 @@ void grabplace(int newRpm) {
   // this works because integer math is kind of silly
 
   for (int i = 3; newRpm >= 0; i--) {
-    dispVal[i] = newRpm / pow(10, i);
-    newRpm -=  dispVal[i] * pow(10, i);
+    dispVal[i] = newRpm / pow(10, i);// get rid of the trailing 0t
+    newRpm -=  dispVal[i] * pow(10, i); //subtract the stuff we've already done
   }
 }
 
 void writeDisplay(byte value, byte pin) {
-
   //this function adapted from Do-All-DRO project by loansindi
   //https://github.com/loansindi/Do-All-DRO
 
-  //off
-  if (pin == DISP_1) {
-    digitalWrite(DISP_4, HIGH); // state
+  //next lines turn off the pin that was just on
+  //there is no 0th pin, so if we've wrapped around to the 1st pin we turn off the 4th
+  if (pin == DISP_1) { //if we started
+    digitalWrite(DISP_4, HIGH); //turn off the 4th
   } else {
-    digitalWrite(pin - 1, HIGH); // state
+    digitalWrite(pin - 1, HIGH); //act normal everybody
   }
 
-  //on
-  digitalWrite(pin, LOW); //state
+  //next 3 lines print the value
+  shiftOut(dataPin, clockPin, MSBFIRST, value); //tell the shift register what number to print
+  digitalWrite(latchPin, HIGH); //data is served
+  digitalWrite(latchPin, LOW); //back to normal
 
-  shiftOut(dataPin, clockPin, MSBFIRST, value);
-  digitalWrite(latchPin, HIGH);
-  digitalWrite(latchPin, LOW);
+  digitalWrite(pin, LOW); //Now turn on the next display
+  delay(10); //wait so the display is on for a sec.
 }
