@@ -24,25 +24,29 @@ int dispVal[] = {
 #define seven B11100000
 #define eight B11111110
 #define nine B11100110
-//numbers is used to call specific digits
-
-byte numbers[] = {
-  zero, one, two, three, four, five, six, seven, eight, nine
-};
+byte digits[] = {zero, one, two, three, four, five, six, seven, eight, nine}; //digits is used to call specific displays
 
 //pins used to select the digit.
-#define DIG_1 2
-#define DIG_2 4
-#define DIG_3 7
-#define DIG_4 8
+#define DISP_1 2
+#define DISP_2 4
+#define DISP_3 7
+#define DISP_4 8
+byte displays[] = {DISP_1, DISP_2, DISP_3, DISP_4};
 
 void setup() {
   pinMode(latchPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(dataPin, OUTPUT);
+  for (byte i; i < 4; i++) {
+    pinMode(displays[i], OUTPUT);
+  }
 }
 
 void loop() {
+  grabplace(carspeed);
+  for (byte i; i < 4; i++) {
+    writeDisplay(dispVal[i], displays[i]);
+  }
 }
 
 void grabplace(int newRpm) {
@@ -59,23 +63,22 @@ void grabplace(int newRpm) {
   }
 }
 
-void writeDisplay() {
-  
+void writeDisplay(byte value, byte pin) {
+
   //this function adapted from Do-All-DRO project by loansindi
   //https://github.com/loansindi/Do-All-DRO
-  
-  digitalWrite(latchPin, LOW); //get ready to write the data
-  grabplace(carspeed);
-  shiftOut(dataPin, clockPin, MSBFIRST, numbers[dispVal[0]]);
-  shiftOut(dataPin, clockPin, MSBFIRST, numbers[dispVal[1]]);
-  shiftOut(dataPin, clockPin, MSBFIRST, numbers[dispVal[2]]);
-  shiftOut(dataPin, clockPin, MSBFIRST, numbers[dispVal[3]]);
-  digitalWrite(latchPin, HIGH); //tell the shift regesters we're ready
+
+  //off
+  if (pin == DISP_1) {
+    digitalWrite(DISP_4, HIGH); // state
+  } else {
+    digitalWrite(pin - 1, HIGH); // state
+  }
+
+  //on
+  digitalWrite(pin, LOW); //state
+
+  shiftOut(dataPin, clockPin, MSBFIRST, value);
+  digitalWrite(latchPin, HIGH);
+  digitalWrite(latchPin, LOW);
 }
-
-
-
-
-
-
-
