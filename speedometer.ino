@@ -3,15 +3,13 @@
   and sparkfun electronic's toy car speed trap (https://invent.sparkfun.com/cwists/preview/1117-toy-car-speed-trapx)
 */
 
+//pin defenitions
 #define latchPin 5 //Pin connected to ST_CP of 74HC595
 #define clockPin 6 //Pin connected to SH_CP of 74HC595
 #define dataPin 3 //Pin connected to DS of 74HC595
-
-int carspeed;
-int dispVal[] = {
-  0, 0, 0, 0
-};
-
+#define PHOTO_PIN_1 = A0; //pin connected to the first photoresistor
+#define PHOTO_PIN_2 = A1; //pin connected to second photoresistor
+#define LEDS_PIN = 7; //output pin for LEDs
 
 // These bytes are trial-and-error digits for the seven segment displays I have.
 #define zero B11111100
@@ -33,8 +31,22 @@ byte digits[] = {zero, one, two, three, four, five, six, seven, eight, nine}; //
 #define DISP_4 8
 byte displays[] = {DISP_1, DISP_2, DISP_3, DISP_4}; //array used to select specific diplay digit
 
+//some setup variables:
+const int SPACING = 67; // Space between photoresistors (in mm)
+const int CALIBRATION_SAMPLES = 20;// Number of samples to take for calibration
+const unsigned long TIMEOUT = 500000; //Amount of time (microseconds) to wait for next sensor
+const unsigned int SHOW_SPEED_TIME = 500; // Amount of time (milliseconds) to show speed before resetting
+
+// Global variables
+int threshold_1;
+int threshold_2;
+int carspeed; //how fast is this thing going?
+int dispVal[] = {
+  0, 0, 0, 0
+};
+
 void setup() {
-  //next 3 lines get the shift register all warmed up
+  //next 3 lines get the shift register all set up
   pinMode(latchPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(dataPin, OUTPUT);
