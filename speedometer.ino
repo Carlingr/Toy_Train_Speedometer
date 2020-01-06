@@ -6,10 +6,10 @@
 //pin defenitions
 #define latchPin 5 //Pin connected to ST_CP of 74HC595
 #define clockPin 6 //Pin connected to SH_CP of 74HC595
-#define dataPin 3 //Pin connected to DS of 74HC595
+#define dataPin 14 //Pin connected to DS of 74HC595
 #define PHOTO_PIN_1 = A0; //pin connected to the first photoresistor
 #define PHOTO_PIN_2 = A1; //pin connected to second photoresistor
-#define LEDS_PIN = 7; //output pin for LEDs
+#define LEDS_PIN = 9; //output pin for LEDs
 
 // These bytes are trial-and-error digits for the seven segment displays I have.
 #define zero B11111100
