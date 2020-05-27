@@ -126,7 +126,6 @@ void showSpeed(unsigned long t1) {
 
     dispVal[0] = digits[spd / 10];// get rid of the trailing 0s
     spd -=  (spd / 10) * 10; //subtract the stuff we've already done
-    Serial.println(spd);
     dispVal[1] = digits[spd];// get rid of the trailing 0s
 
     //next hunk deals with putting the decimal in it's place.
