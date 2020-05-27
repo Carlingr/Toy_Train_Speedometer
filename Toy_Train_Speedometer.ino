@@ -4,35 +4,36 @@
 */
 
 //pin defenitions
+#define dataPin 3 //Pin connected to DS of 74HC595
 #define latchPin 5 //Pin connected to ST_CP of 74HC595
 #define clockPin 6 //Pin connected to SH_CP of 74HC595
-#define dataPin 3 //Pin connected to DS of 74HC595
 #define PHOTO_PIN_1 A0 //pin connected to the first photoresistor
 #define PHOTO_PIN_2 A1 //pin connected to second photoresistor
-#define LEDS_PIN 4 //output pin for LEDs
+#define LEDS_PIN 12 //output pin for LEDs
 
 // These bytes are trial-and-error digits for the seven segment displays I have.
-#define zero B11111100
-#define one B01100000
-#define two B11011010
+#define zero  B11111100
+#define one   B01100000
+#define two   B11011010
 #define three B11110010
-#define four B01100110
-#define five B10110110
-#define six B10111110
+#define four  B01100110
+#define five  B10110110
+#define six   B10111110
 #define seven B11100000
 #define eight B11111110
-#define nine B11100110
+#define nine  B11100110
+
 byte digits[] = {zero, one, two, three, four, five, six, seven, eight, nine}; //digits is used to call specific displays
 
 //pins used to select the digit.
 #define DISP_1 2
 #define DISP_2 4
-#define DISP_3 7
-#define DISP_4 8
-byte displays[] = {DISP_1, DISP_2, DISP_3, DISP_4}; //array used to select specific diplay digit
+//#define DISP_3 7
+//#define DISP_4 8
+byte displays[] = {DISP_1, DISP_2}; //array used to select specific diplay digit
 
 //some setup variables:
-const int SPACING = 67; // Space between photoresistors (in mm)
+const int SPACING = 2; // Space between photoresistors (in inches)
 const int CALIBRATION_SAMPLES = 20;// Number of samples to take for calibration
 const unsigned long TIMEOUT = 5000000; //Amount of time (microseconds) to wait for next sensor
 const unsigned long SHOW_SPEED_TIME = 500000; // Amount of time (microseconds) to show speed before resetting
@@ -42,8 +43,8 @@ int threshold_1;
 int threshold_2;
 int carspeed; //how fast is this thing going?
 int dispVal[] = {
-  0, 0, 0, 0
-};
+  B00000010, B00000010
+}; //shows dashes on the display on boot.
 
 void setup() {
   Serial.begin(9600);
@@ -63,7 +64,7 @@ void setup() {
 }
 
 void loop() {
-  //NB: this code expects pull *DOWN* resistors. connect the resistor to the - rail
+  //NB: this code expects pull *DOWN* resistors. connect the resistor to the neg rail
   int photo_light_1;
   int photo_light_2;
   unsigned long time_1;
@@ -88,68 +89,81 @@ void loop() {
 
       // Else, exit if enough time has passesd
       if ( (micros() - time_1) > TIMEOUT ) {
-        showError();
+        showError(1);
         break;
       }
     }
   }
+  writeDisplay();
 }
 
 void showSpeed(unsigned long t1) {
 
   unsigned long t2 = micros();
-
-  float spd;
+  unsigned long spd;
 
   // Take the current time and calculate the object's speed
-  spd = (SPACING * 1000.0) / (t2 - t1);
-  grabplace(carspeed); //break down the number into individual places
-  while (t2 - micros() <= SHOW_SPEED_TIME) { //show the numbers for more than one processor cycle
-    //next 3 lines: now that we have the places, send out the data
-    for (byte i; i < 4; i++) {
-      writeDisplay(dispVal[i], displays[i]);
+  //this will be in inches per second *10 so we don't have to deal with floats
+  spd = ((SPACING * 10000000) / (t2 - t1));
+  Serial.print("speed = ");
+  Serial.println(spd);
+  //now break down the number into individual places
+  //this function adapted from Do-All-DRO project by loansindi
+  //https://github.com/loansindi/Do-All-DRO
+  bool dot = true;
+  if (spd > 990) { //if it's going faster than 99 inches per sec
+    showError(2); //throw an error, because it shouldn't be going that fast
+  }
+  else {
+    if (spd > 99) { //faster than 9.9 ips
+      spd /= 10; //divide by 10 so it fits on the disp
+      dot = false; //note that we have to move the dot.
+    }
+
+    // we need to build our number
+    // by 'knocking off' each place value we can turn our int into discrete digits
+    // this works because integer math is kind of silly
+
+    dispVal[0] = digits[spd / 10];// get rid of the trailing 0s
+    spd -=  (spd / 10) * 10; //subtract the stuff we've already done
+    Serial.println(spd);
+    dispVal[1] = digits[spd];// get rid of the trailing 0s
+
+    //next hunk deals with putting the decimal in it's place.
+    if (dot) { //if the number is less than 99
+      bitSet(dispVal[0], 0); //sets the DP bit of the relevant output byte
     }
   }
 }
 
-void showError() {
-  Serial.println("ERR: 2nd Gate timeout");
-  //TODO: do something here!
+void showError(byte error) {
+  /*Error codes currently in use:
+     E1 Timeout
+     E2 Speed too High
+  */
+  Serial.print("Error");
+  Serial.println(error);
+  dispVal[0] = B10011110; //prints an E in the 1st space
+  dispVal[1] = digits[error]; //Prints the error code in the 2nd space
 }
 
-void grabplace(int newRpm) {
-  //this function adapted from Do-All-DRO project by loansindi
-  //https://github.com/loansindi/Do-All-DRO
+void writeDisplay() {
+  /*this function will show the byte values in dispVal[] on the display.
+    dispVal[] holds binary to be printed to the display, if you put ascii
+    text in it you will be confused.
+    Also not that LOW is on and HIGH is off concerning the display digits
+    because charlieplexing*/
+  for (byte i = 0; i < 2; i++) {// loop through the display digits.
+    //next 3 lines send the value of the digit to the shift register
+    shiftOut(dataPin, clockPin, LSBFIRST, dispVal[i]); //tell the shift register what number to print
+    digitalWrite(latchPin, HIGH); //data is served
+    digitalWrite(latchPin, LOW); //back to normal
 
-  // we need to build our number
-  // by 'knocking off' each place value we can turn our int into discrete digits
-  // this works because integer math is kind of silly
-
-  for (int i = 3; newRpm >= 0; i--) {
-    dispVal[i] = newRpm / pow(10, i);// get rid of the trailing 0t
-    newRpm -=  dispVal[i] * pow(10, i); //subtract the stuff we've already done
+    //next 3 lines show the digit on the display
+    digitalWrite(displays[i], LOW); //Now turn on the digit
+    delay(10); //wait so the display is on for a tick (or 10).
+    digitalWrite(displays[i], HIGH); //Now turn off the digit
   }
-}
-
-void writeDisplay(byte value, byte pin) {
-  //this function adapted from Do-All-DRO project by loansindi
-  //https://github.com/loansindi/Do-All-DRO
-
-  //next lines turn off the pin that was just on
-  //there is no 0th pin, so if we've wrapped around to the 1st pin we turn off the 4th
-  if (pin == DISP_1) { //if we started
-    digitalWrite(DISP_4, HIGH); //turn off the 4th
-  } else {
-    digitalWrite(pin - 1, HIGH); //act normal everybody
-  }
-
-  //next 3 lines print the value
-  shiftOut(dataPin, clockPin, MSBFIRST, value); //tell the shift register what number to print
-  digitalWrite(latchPin, HIGH); //data is served
-  digitalWrite(latchPin, LOW); //back to normal
-
-  digitalWrite(pin, LOW); //Now turn on the next display
-  delay(10); //wait so the display is on for a sec.
 }
 
 void calibrateSensors() {
@@ -162,7 +176,7 @@ void calibrateSensors() {
 
   // Turn on LEDs and wait a few ms for them to be fully on
   digitalWrite(LEDS_PIN, HIGH);
-  delay(100);
+  delay(150);
 
   // Find average light value for sensors with LEDs on
   for ( i = 0; i < CALIBRATION_SAMPLES; i++ ) {
@@ -174,7 +188,7 @@ void calibrateSensors() {
 
   // Turn off LEDs and wait a few ms for them to be fully off
   digitalWrite(LEDS_PIN, LOW);
-  delay(500);
+  delay(150);
 
   // Find average light value for sensors with LEDs off
   for ( i = 0; i < CALIBRATION_SAMPLES; i++ ) {
@@ -189,11 +203,12 @@ void calibrateSensors() {
   threshold_2 = ((avg_lit_2 - avg_unlit_2) / 2) + avg_unlit_2;
   // Turn on output LEDs and wait for them to be fully on
 
+  Serial.println("calibrating");
   Serial.print(threshold_1);
   Serial.print(" , ");
   Serial.println(threshold_2);
   Serial.println("-------------------");
 
   digitalWrite(LEDS_PIN, HIGH);
-  delay(100);
+  delay(150);
 }
