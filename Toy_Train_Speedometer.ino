@@ -1,12 +1,16 @@
 /*
-  This project is really a combination of Do-All-DRO project by loansindi (https://github.com/loansindi/Do-All-DRO)
-  and sparkfun electronic's toy car speed trap (https://invent.sparkfun.com/cwists/preview/1117-toy-car-speed-trapx)
+This project relies heavily on code from Sparkfun Electronics’ Hot Wheels Speed Trap (https://edu.workbencheducation.com/cwists/preview/11064x) for calculating speeds and general structure, and is conceptually indebted to Derek Bever’s Do-All-DRO (https://github.com/loansindi/Do-All-DRO). It is released under the GNU General Public License v3.0 (https://www.gnu.org/licenses/gpl-3.0.html)
 */
 
+//some setup variables:
+const int SPACING = 2; // Space between photoresistors (in inches)
+const int CALIBRATION_SAMPLES = 20;// Number of samples to take for calibration
+const unsigned long TIMEOUT = 5000000; //Amount of time (microseconds) to wait for next sensor
+
 //pin defenitions
-#define dataPin 3 //Pin connected to DS of 74HC595
-#define latchPin 5 //Pin connected to ST_CP of 74HC595
-#define clockPin 6 //Pin connected to SH_CP of 74HC595
+#define dataPin 3 //Pin connected to SER of 74HC595
+#define latchPin 5 //Pin connected to RCK of 74HC595
+#define clockPin 6 //Pin connected to SRCK of 74HC595
 #define PHOTO_PIN_1 A0 //pin connected to the first photoresistor
 #define PHOTO_PIN_2 A1 //pin connected to second photoresistor
 #define LEDS_PIN 12 //output pin for LEDs
@@ -32,12 +36,6 @@ byte digits[] = {zero, one, two, three, four, five, six, seven, eight, nine}; //
 //#define DISP_4 8
 byte displays[] = {DISP_1, DISP_2}; //array used to select specific diplay digit
 
-//some setup variables:
-const int SPACING = 2; // Space between photoresistors (in inches)
-const int CALIBRATION_SAMPLES = 20;// Number of samples to take for calibration
-const unsigned long TIMEOUT = 5000000; //Amount of time (microseconds) to wait for next sensor
-const unsigned long SHOW_SPEED_TIME = 500000; // Amount of time (microseconds) to show speed before resetting
-
 // Global variables
 int threshold_1;
 int threshold_2;
@@ -48,6 +46,12 @@ int dispVal[] = {
 
 void setup() {
   Serial.begin(9600);
+  Serial.println("Toy_Train_Speedometer by Carlingr.tech");
+  Serial.println("Firmware V0.8.1");
+  Serial.println("-------------------");
+  Serial.println("This software is available under GNU General Public License v3.0");
+  Serial.println("Any modifications must be published under the same license.");
+  Serial.println("-------------------");
   //next 3 lines get the shift register all set up
   pinMode(latchPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
